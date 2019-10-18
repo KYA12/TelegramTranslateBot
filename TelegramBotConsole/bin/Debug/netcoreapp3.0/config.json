@@ -2,7 +2,7 @@
 	"ConnectionStrings": {
 		"DefaultConnection": "Data Source=Words.db"
 	},
-	"Key": "751813304:AAG1Emyb956a4ao1XU_BVKRX_Bwz9m3Uhqw",//insert yout API token here
+	"Key": "",//insert yout API token here
 	"FromLanguage":"Russian",
 	"ToLanguage":"English"
 }
