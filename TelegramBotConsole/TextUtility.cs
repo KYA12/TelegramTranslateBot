@@ -19,6 +19,10 @@ namespace TelegramBotConsole
                 {
                     builder.Append(' ');
                 }
+                if (previousChar =='-')
+                {
+                    builder.Append(' ');
+                }
                 builder.Append(ch);
                 previousChar = ch;
             }
