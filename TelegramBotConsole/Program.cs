@@ -61,12 +61,11 @@ Usage:
                     {
                         await bot.SendChatActionAsync(e.Message.Chat.Id, ChatAction.Typing);
                     }
-                    catch(Exception ex)
+                    catch (Exception ex)
                     {
                         Log.Error($"Error is: {ex.Message}");
                     }
-                    var keyboard = new InlineKeyboardMarkup(new[] {
-                        InlineKeyboardButton.WithCallbackData("Translate word/sentence")});
+                    var keyboard = new InlineKeyboardMarkup(new[] { InlineKeyboardButton.WithCallbackData("Translate word/sentence")});
                     try
                     {
                         await bot.SendTextMessageAsync(e.Message.Chat.Id, "Choose", replyMarkup: keyboard);
@@ -102,9 +101,9 @@ Usage:
                     StringBuilder textOriginal = new StringBuilder(e.Message.Text);
                     string stringOriginal = textOriginal.ToString();// Строка со всеми знаками пунктуации и пробелами
                     Dictionary<string, string> dictTranslated = new Dictionary<string, string>();// Словарь перевода слов с русского на английский. Dictionary(RusWord, EngWord)
-                    string[] wordArrayForTranslate = e.Message.Text.Split(new[] { ' ', '.', ',', '?', '!', ':', ';', '-', '\"', '/' }, 
+                    string[] wordArrayForTranslate = e.Message.Text.Split(new[] { ' ', '.', ',', '?', '!', ':', ';', '-', '\"', '/' },
                         StringSplitOptions.RemoveEmptyEntries);// Создание массив слов из текста пользователя, по разделителям и удаляем лишние пробелы
-                    string[] wordArray = TextUtility.AddSpacesBeforePunctuation(stringOriginal).Split(new[] { ' ' }, 
+                    string[] wordArrayOriginal = TextUtility.AddSpacesBeforePunctuation(stringOriginal).Split(new[] { ' ' },
                         StringSplitOptions.RemoveEmptyEntries);// Создание массива слов включаю разделители и удаляем пробелы
 
                     foreach (var word in wordArrayForTranslate)
@@ -112,7 +111,8 @@ Usage:
                         {
                             /*  Переводим слово если его нет в базе данных 
                              *  и добавляем в базу данных, или берем перевод из базы данных */
-                            string st = await GetValueFromDBAsync(word);
+                            string st = await DatabaseService.GetValueFromDBAsync(word, Log.Logger, db, fromLanguage,
+                                toLanguage);
                             string testString;
                             if (!dictTranslated.TryGetValue(word, out testString))// Проверяем есть ли слово с переводом в словаре 
                             {
@@ -120,19 +120,20 @@ Usage:
                             }
                         }
 
-                    for (int j = 0; j < wordArray.Length; j++)
+                    for (int j = 0; j < wordArrayOriginal.Length; j++)
                     {
                         string value;
-                        if (dictTranslated.TryGetValue(wordArray[j], out value))// Проверяем если перевод слова для оригинального текста в словаре
+                        if (dictTranslated.TryGetValue(wordArrayOriginal[j], out value))// Проверяем если перевод слова для оригинального текста в словаре
                         {
-                            wordArray[j] = value;// Если перевод слова есть, заменяем русское слово на английский перевод в оригинальном тексте
+                            wordArrayOriginal[j] = value;// Если перевод слова есть, заменяем русское слово на английский перевод в оригинальном тексте
                         }
                     }
 
                     /* Удаление пробела перед каждым знаком пунктуации и добавление слова в строку*/
-                    StringBuilder result = TextUtility.RemoveSpacesBeforePunctuationAndAddWord(wordArray);
+                    StringBuilder result = TextUtility.RemoveSpacesBeforePunctuationAndAddWord(wordArrayOriginal);
 
-                    await bot.SendTextMessageAsync(e.Message.Chat.Id, $"Your word/sentence translation is: {result.ToString()}");
+                    await bot.SendTextMessageAsync(e.Message.Chat.Id, $"Your word/sentence translation is: " +
+                        $"{result.ToString()}");
                 }
             }
 
@@ -150,75 +151,12 @@ Usage:
                     catch (Exception ex)
                     {
                         Log.Error($"Error is: {ex.Message}");
-                    } 
+                    }
                     break;
             }
         }
-        public static async Task<string> GetValueFromDBAsync(string wordToCheck)
-        {
-            try
-            {
-                return await Task.Run(() => GetValueFromDB(wordToCheck));
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error is: {ex.Message}");
-                return null;
-            }
-        }
-      
-        public static string GetValueFromDB(string word)
-        {
-            /* Если слово для перевода начинается с большой буквы,
-             * то переводится слово на английский и выводится перевод с большой буквы */
-            List<Word> words = db.Words.ToList();
-            if (char.IsUpper(word[0]))
-            {
-                foreach (var w in words)
-                {
-                    if (string.Equals(w.OriginalWord, word, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return w.TranslatedWord.First().ToString().ToUpper() + w.TranslatedWord.Substring(1);
-                    }
-                }
-
-                string lowWord = word.First().ToString().ToLower() + word.Substring(1);
-                Word upperWord = new Word(lowWord, Translate.GoogleTranslate(lowWord, Log.Logger, fromLanguage, toLanguage).Result);
-                db.Words.Add(upperWord);// Добавление английского слова в базу данных, если его там нет
-                try
-                {
-                    db.SaveChanges();
-                }
-                catch (Exception ex)
-                {
-                    Log.Error($"Error is: {ex.Message}");
-                }
-                return upperWord.TranslatedWord.First().ToString().ToUpper() + upperWord.TranslatedWord.Substring(1);
-            };
-
-            /* Если слово для перевода начинается с маленькой буквы,
-             * то переводится слово на английский и выводится перевод с маленькой буквы */
-            foreach (var w in words)
-            { 
-                if (string.Equals(w.OriginalWord, word))
-                {
-                    return w.TranslatedWord;
-                }
-            }
-
-            Word newWord = new Word(word, Translate.GoogleTranslate(word, Log.Logger, fromLanguage, toLanguage).Result);
-            db.Words.Add(newWord);
-            try
-            {
-                db.SaveChanges();
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error is: {ex.Message}");
-            }
-            return newWord.TranslatedWord;
-        }
-      
     }
 }
+      
+      
 
