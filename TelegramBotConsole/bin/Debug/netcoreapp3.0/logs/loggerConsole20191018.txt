@@ -1,0 +1,10 @@
+2019-10-18 15:37:05.584 +03:00 [ERR] Error is: Value cannot be null. (Parameter 'key')
+2019-10-18 15:37:05.799 +03:00 [ERR] Error is: Value cannot be null. (Parameter 'key')
+2019-10-18 15:39:52.689 +03:00 [ERR] Error is: Value cannot be null. (Parameter 'key')
+2019-10-18 15:43:14.260 +03:00 [ERR] Error is: Value cannot be null. (Parameter 'key')
+2019-10-18 17:31:52.508 +03:00 [ERR] Error is: SQLite Error 1: 'no such table: Words'.
+2019-10-18 17:31:52.616 +03:00 [ERR] Error is: SQLite Error 1: 'no such table: Words'.
+2019-10-18 17:35:05.012 +03:00 [ERR] Error is: SQLite Error 1: 'no such table: Words'.
+2019-10-18 17:35:05.120 +03:00 [ERR] Error is: SQLite Error 1: 'no such table: Words'.
+2019-10-18 17:50:12.181 +03:00 [ERR] Error is: SQLite Error 1: 'no such table: Words'.
+2019-10-18 17:50:12.308 +03:00 [ERR] Error is: SQLite Error 1: 'no such table: Words'.
