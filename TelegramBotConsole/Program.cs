@@ -4,13 +4,12 @@ using Telegram.Bot;
 using TelegramBotConsole.Models;
 using Telegram.Bot.Args;
 using Telegram.Bot.Types.Enums;
-using System.Threading.Tasks;
 using Telegram.Bot.Types.ReplyMarkups;
-using System.Linq;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using System.IO;
 using Serilog;
+using TelegramBotConsole.Services;
 
 namespace TelegramBotConsole
 {
@@ -98,13 +97,9 @@ Usage:
                 }
                 else
                 {
-                    StringBuilder textOriginal = new StringBuilder(e.Message.Text);
-                    string stringOriginal = textOriginal.ToString();// Строка со всеми знаками пунктуации и пробелами
                     Dictionary<string, string> dictTranslated = new Dictionary<string, string>();// Словарь перевода слов с русского на английский. Dictionary(RusWord, EngWord)
-                    string[] wordArrayForTranslate = e.Message.Text.Split(new[] { ' ', '.', ',', '?', '!', ':', ';', '-', '\"', '/' },
-                        StringSplitOptions.RemoveEmptyEntries);// Создание массив слов из текста пользователя, по разделителям и удаляем лишние пробелы
-                    string[] wordArrayOriginal = TextUtility.AddSpacesBeforePunctuation(stringOriginal).Split(new[] { ' ' },
-                        StringSplitOptions.RemoveEmptyEntries);// Создание массива слов включаю разделители и удаляем пробелы
+                    string[] wordArrayForTranslate = TextUtility.ConvertForTranslate(e.Message.Text);
+                    string[] wordArrayOriginal = TextUtility.ConvertOriginal(e.Message.Text);
 
                     foreach (var word in wordArrayForTranslate)
                         if (word != "")
@@ -136,7 +131,6 @@ Usage:
                         $"{result.ToString()}");
                 }
             }
-
         }
         private static async void BotOnCallbackQueryDictionary(object sender, CallbackQueryEventArgs e)
         {
