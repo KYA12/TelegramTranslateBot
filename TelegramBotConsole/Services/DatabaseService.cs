@@ -41,7 +41,6 @@ namespace TelegramBotConsole.Services
                 string lowWord = word.First().ToString().ToLower() + word.Substring(1);
                 Word upperWord = new Word(lowWord, Translate.GoogleTranslate(lowWord, logger, 
                     fromLanguage, toLanguage).Result);
-                string s = upperWord.TranslatedWord;
                 db.Words.Add(upperWord);// Добавление английского слова в базу данных, если его там нет
                 try
                 {
