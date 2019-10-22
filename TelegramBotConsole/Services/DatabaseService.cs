@@ -1,7 +1,7 @@
-﻿using System;
+using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using TelegramBotConsole.Models;
 
@@ -9,69 +9,69 @@ namespace TelegramBotConsole.Services
 {
     public class DatabaseService
     {
-        public static async Task<string> GetValueFromDBAsync(string wordToCheck, Serilog.ILogger logger, 
-            DictionaryContext context, string fromLanguage, string toLanguage)
-        {
-            try
-            {
-                return await Task.Run(() => GetValueFromDB(wordToCheck, context, fromLanguage, toLanguage, logger));
-            }
-            catch (Exception ex)
-            {
-                logger.Error($"Error is: {ex.Message}");
-                return null;
-            }
-        }
-        public static string GetValueFromDB(string word, DictionaryContext db, string fromLanguage, 
-            string toLanguage, Serilog.ILogger logger)
+        public static async Task<string>  GetValueFromDBAsync(string wordToCheck, Serilog.ILogger logger,
+            string fromLanguage, string toLanguage)
         {
             /* Если слово для перевода начинается с большой буквы,
              * то переводится слово на английский и выводится перевод с большой буквы */
-            List<Word> words = db.Words.ToList();
-            if (char.IsUpper(word[0]))
+            List<Word> words;
+            using (DictionaryContext con = new DictionaryContext())
             {
-                foreach (var w in words)
+                words = await con.Words.ToListAsync();
+            }
+            if (char.IsUpper(wordToCheck[0]))
+            {
+                var isUpper = words.AsParallel().Where(w => string.Equals(w.OriginalWord, wordToCheck, StringComparison.OrdinalIgnoreCase));
+               
+                if (isUpper != null)
                 {
-                    if (string.Equals(w.OriginalWord, word, StringComparison.OrdinalIgnoreCase))
+                    foreach (Word w in isUpper) return w.TranslatedWord.First().ToString().ToUpper() + w.TranslatedWord.Substring(1);
+                }
+                string lowWord = wordToCheck.First().ToString().ToLower() + wordToCheck.Substring(1);
+                Word upperWord = new Word(lowWord, await Translate.GoogleTranslateAsync(lowWord, logger, 
+                    fromLanguage, toLanguage));
+                using (DictionaryContext con = new DictionaryContext())
+                {
+                    if (con.Words.FindAsync(upperWord.OriginalWord) == null)
                     {
-                        return w.TranslatedWord.First().ToString().ToUpper() + w.TranslatedWord.Substring(1);
+                        try
+                        {
+                            await con.Words.AddAsync(upperWord);// Добавление английского слова в базу данных, если его там нет
+                            await con.SaveChangesAsync();
+                        }
+ 
+                        catch (DbUpdateConcurrencyException ex)
+                        {
+                            logger.Error($"Error is: {ex.Message}");
+                        }
+                    
                     }
-                }
-
-                string lowWord = word.First().ToString().ToLower() + word.Substring(1);
-                Word upperWord = new Word(lowWord, Translate.GoogleTranslate(lowWord, logger, 
-                    fromLanguage, toLanguage).Result);
-                db.Words.Add(upperWord);// Добавление английского слова в базу данных, если его там нет
-                try
-                {
-                    db.SaveChanges();
-                }
-                catch (Exception ex)
-                {
-                    logger.Error($"Error is: {ex.Message}");
                 }
                 return upperWord.TranslatedWord.First().ToString().ToUpper() + upperWord.TranslatedWord.Substring(1);
             };
 
             /* Если слово для перевода начинается с маленькой буквы,
              * то переводится слово на английский и выводится перевод с маленькой буквы */
-            foreach (var w in words)
+
+            var word = words.AsParallel().Where(w => string.Equals(w.OriginalWord, wordToCheck));
+
+            if (word != null)
             {
-                if (string.Equals(w.OriginalWord, word))
-                {
-                    return w.TranslatedWord;
-                }
+                foreach (Word w in word) return w.TranslatedWord;
             }
 
-            Word newWord = new Word(word, Translate.GoogleTranslate(word, logger, fromLanguage, toLanguage).Result);
-            db.Words.Add(newWord);
-            try
+            Word newWord = new Word(wordToCheck, await Translate.GoogleTranslateAsync(wordToCheck, logger, fromLanguage, toLanguage));
+            using (DictionaryContext con = new DictionaryContext())
             {
-                db.SaveChanges();
-            }
-            catch (Exception ex)
-            {
-                logger.Error($"Error is: {ex.Message}");
+                try
+                {
+                    await con.Words.AddAsync(newWord);
+                    await con.SaveChangesAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger.Error($"Error is: {ex.Message}");
+                }
             }
             return newWord.TranslatedWord;
         }
