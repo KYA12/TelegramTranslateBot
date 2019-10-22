@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Telegram.Bot;
 using TelegramBotConsole.Models;
@@ -10,17 +10,20 @@ using Microsoft.Extensions.Configuration;
 using System.IO;
 using Serilog;
 using TelegramBotConsole.Services;
+using System.Threading.Tasks;
+using System.Collections.Concurrent;
 
 namespace TelegramBotConsole
 {
     public class Program
     {
         public static TelegramBotClient bot; // Телеграм бот
+        public static object lockobj;
+        public static int count = Environment.ProcessorCount/2;
         private static string curCommand = ""; //  Текущая команда
-        private static readonly DictionaryContext db = new DictionaryContext();
-        /* Вывод списка доступных пользователю команд */
         private static string fromLanguage;
         private static string toLanguage;
+        /* Вывод списка доступных пользователю команд */
         private const string commands = @"
 Usage:
 /dictionary - translate your word/sentence from Russian to English
@@ -49,7 +52,6 @@ Usage:
             bot.StartReceiving();
             Console.ReadLine();
             bot.StopReceiving();
-            db.Dispose();
         }
         private static async void BotCommandsSwitchingAndSending(object sender, MessageEventArgs e)
         {
@@ -97,35 +99,28 @@ Usage:
                 }
                 else
                 {
-                    Dictionary<string, string> dictTranslated = new Dictionary<string, string>();// Словарь перевода слов с русского на английский. Dictionary(RusWord, EngWord)
-                    string[] wordArrayForTranslate = TextUtility.ConvertForTranslate(e.Message.Text);
-                    string[] wordArrayOriginal = TextUtility.ConvertOriginal(e.Message.Text);
+                    ConcurrentDictionary<string, string> dictTranslated = new ConcurrentDictionary<string, string>();// Словарь перевода слов с русского на английский. Dictionary(RusWord, EngWord)
+                    string[] wordArrayForTranslate = await TextUtility.ConvertForTranslateAsync(e.Message.Text);
+                    string[] wordArrayOriginal = await TextUtility.ConvertOriginalAsync(e.Message.Text);
 
-                    foreach (var word in wordArrayForTranslate)
-                        if (word != "")
-                        {
-                            /*  Переводим слово если его нет в базе данных 
-                             *  и добавляем в базу данных, или берем перевод из базы данных */
-                            string st = await DatabaseService.GetValueFromDBAsync(word, Log.Logger, db, fromLanguage,
-                                toLanguage);
-                            string testString;
-                            if (!dictTranslated.TryGetValue(word, out testString))// Проверяем есть ли слово с переводом в словаре 
-                            {
-                                dictTranslated.Add(word, st);//Если слова в словаре нет, добавляем его в словарь
-                            }
-                        }
-
-                    for (int j = 0; j < wordArrayOriginal.Length; j++)
+                    foreach(var word in wordArrayForTranslate)
                     {
-                        string value;
-                        if (dictTranslated.TryGetValue(wordArrayOriginal[j], out value))// Проверяем если перевод слова для оригинального текста в словаре
-                        {
-                            wordArrayOriginal[j] = value;// Если перевод слова есть, заменяем русское слово на английский перевод в оригинальном тексте
-                        }
+                        string st = await DatabaseService.GetValueFromDBAsync(word, Log.Logger, fromLanguage,
+                           toLanguage);
+                        dictTranslated.GetOrAdd(word, st);// Проверяем есть ли слово с переводом в словаре 
                     }
 
+                    Parallel.For(0, wordArrayOriginal.Length, new ParallelOptions { MaxDegreeOfParallelism = count }, x =>
+                    {
+                        string value;
+                        if (dictTranslated.TryGetValue(wordArrayOriginal[x], out value))// Проверяем если перевод слова для оригинального текста в словаре
+                        {
+                            wordArrayOriginal[x] = value;// Если перевод слова есть, заменяем русское слово на английский перевод в оригинальном тексте
+                        }
+                    });
+                        
                     /* Удаление пробела перед каждым знаком пунктуации и добавление слова в строку*/
-                    StringBuilder result = TextUtility.RemoveSpacesBeforePunctuationAndAddWord(wordArrayOriginal);
+                    string result = await TextUtility.RemoveSpacesBeforePunctuationAsync(wordArrayOriginal);
 
                     await bot.SendTextMessageAsync(e.Message.Chat.Id, $"Your word/sentence translation is: " +
                         $"{result.ToString()}");
@@ -151,6 +146,5 @@ Usage:
         }
     }
 }
-      
       
 
