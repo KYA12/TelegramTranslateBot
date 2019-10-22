@@ -1,25 +1,35 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace TelegramBotConsole.Services
 {
     public class TextUtility
     {
+        public static async Task<string[]> ConvertForTranslateAsync(string textForTranslate)
+        {
+            return await Task.Run(() => ConvertForTranslate(textForTranslate));
+        }
         public static string[] ConvertForTranslate(string textForTranslate)
         {
             string[] wordArrayForTranslate = textForTranslate.Split(new[] { ' ', '.', ',', '?', '!', ':', ';', '-', '\"', '/' },
                              StringSplitOptions.RemoveEmptyEntries);// Создание массив слов из текста пользователя, по разделителям и удаляем лишние пробелы
             return wordArrayForTranslate;
         }
-        public static string[] ConvertOriginal(string textOriginal) 
+
+        public static async Task<string[]> ConvertOriginalAsync(string textOriginal) 
         {
-            string[] wordArrayOriginal = TextUtility.AddSpacesBeforePunctuation(textOriginal).Split(new[] { ' ' },
-                       StringSplitOptions.RemoveEmptyEntries);// Создание массива слов включаю разделители и удаляем пробелы
+            string st  = await AddSpacesBeforePunctuationAsync(textOriginal);
+            string[] wordArrayOriginal = st.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);// Создание массива слов включаю разделители и удаляем пробелы
             return wordArrayOriginal;
 
         }
 
+        public static async Task<string> AddSpacesBeforePunctuationAsync(string stringOriginal)
+        {
+            return await Task.Run(() => AddSpacesBeforePunctuation(stringOriginal));
+        }
         public static string AddSpacesBeforePunctuation(string stringOriginal)
         {
             var builder = new StringBuilder();
@@ -43,7 +53,12 @@ namespace TelegramBotConsole.Services
             string stringChanged = builder.ToString();
             return stringChanged;
         }
-        public static StringBuilder RemoveSpacesBeforePunctuationAndAddWord(string[] wordArray)
+        public static async Task<string> RemoveSpacesBeforePunctuationAsync(string[] wordArray)
+        {
+            return await Task.Run(() => RemoveSpacesBeforePunctuation(wordArray));
+        }
+
+        public static string RemoveSpacesBeforePunctuation(string[] wordArray)
         {
             StringBuilder result = new StringBuilder(); // Строка с результатом перевода слова/фразы
             for (int i = 0; i < wordArray.Length; i++)
@@ -55,7 +70,7 @@ namespace TelegramBotConsole.Services
                 result.Append(wordArray[i]);
                 result.Append(" ");
             }
-            return result;
+            return result.ToString();
         }
     }
 }
